@@ -19,6 +19,9 @@
  */
 void priqueue_init(priqueue_t *q, int(*comparer)(const void *, const void *))
 {
+  q->head = NULL;
+  q->comparerfunc = comparer;
+  
 
 }
 
@@ -32,7 +35,32 @@ void priqueue_init(priqueue_t *q, int(*comparer)(const void *, const void *))
  */
 int priqueue_offer(priqueue_t *q, void *ptr)
 {
-	return -1;
+	if (q->head == NULL){
+    struct node *tmp = malloc(sizeof(struct node));
+
+    tmp->data = ptr;
+    tmp->prev = NULL;
+    tmp->next = NULL;
+    q->head = tmp;
+    return 0;
+  }else{//need to compare
+    int i = 0;
+    struct node *tmp = q->head;
+    struct node *nxt = q->head;
+
+    while (tmp->next != NULL && q->comparerfunc(tmp->data,ptr)<0){
+      tmp = tmp->next;
+      i++;
+    }
+    nxt = tmp->next;
+    tmp->next = malloc(sizeof(struct node));
+    tmp->next->data = ptr;
+    tmp->next->prev = tmp;
+    tmp->next->next = nxt;
+    return i;
+  }
+
+  return -1;
 }
 
 
@@ -46,6 +74,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
  */
 void *priqueue_peek(priqueue_t *q)
 {
+  
 	return NULL;
 }
 

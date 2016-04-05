@@ -9,8 +9,18 @@
 */
 typedef struct _priqueue_t
 {
-
+	int (*comparerfunc)(const void *elma, const void *elmb);
+	struct node * head;
 } priqueue_t;
+
+struct node
+{
+	int priority;
+	void * data;
+	struct node * prev;
+	struct node * next;
+
+};
 
 
 void   priqueue_init     (priqueue_t *q, int(*comparer)(const void *, const void *));
