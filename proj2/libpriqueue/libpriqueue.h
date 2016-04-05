@@ -15,7 +15,6 @@ typedef struct _priqueue_t
 
 struct node
 {
-	int priority;
 	void * data;
 	struct node * prev;
 	struct node * next;

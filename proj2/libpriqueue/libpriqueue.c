@@ -93,7 +93,12 @@ void *priqueue_peek(priqueue_t *q)
  */
 void *priqueue_poll(priqueue_t *q)
 {
-	return NULL;
+  if (q->head == NULL){
+    return NULL;
+  }
+  return priqueue_remove_at(q,0);
+
+	
 }
 
 
@@ -138,7 +143,21 @@ int priqueue_remove(priqueue_t *q, void *ptr)
  */
 void *priqueue_remove_at(priqueue_t *q, int index)
 {
-	return 0;
+  int i = index;
+  struct node *tmp = q->head;
+  for(int i = index; i>0; i--){
+    if(tmp->next == NULL){
+      printf("no element at index!\n");
+      return NULL;
+    }
+    tmp = tmp->next;
+  }
+  tmp->prev = tmp->next;
+
+  void * dta = tmp->data;
+  free(node);
+
+	return dta;
 }
 
 
