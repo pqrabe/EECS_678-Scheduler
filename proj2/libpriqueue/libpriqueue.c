@@ -35,6 +35,7 @@ void priqueue_init(priqueue_t *q, int(*comparer)(const void *, const void *))
  */
 int priqueue_offer(priqueue_t *q, void *ptr)
 {
+  /*
 	if (q->head == NULL){
     struct node *tmp = malloc(sizeof(struct node));
 
@@ -48,7 +49,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
     struct node *tmp = q->head;
     struct node *nxt = q->head;
 
-    while (tmp->next != NULL && q->comparerfunc(tmp->data,ptr)<0){
+    while (tmp->next != NULL || q->comparerfunc(tmp->data,ptr)){
       tmp = tmp->next;
       i++;
     }
@@ -61,6 +62,46 @@ int priqueue_offer(priqueue_t *q, void *ptr)
   }
 
   return -1;
+*/
+//TODO: not working yet...
+  
+  int i = 0;
+  int set = 0;
+  struct node *tmp = q->head;
+  struct node *prev = NULL;
+  while(tmp != NULL){
+    if(q->comparerfunc(tmp->data,ptr)>0){
+        struct node *newnode = malloc(sizeof(struct node));
+        newnode->data = ptr;
+        newnode->next = tmp;
+        if (i != 0){
+        newnode->prev = tmp->prev;//
+        newnode->prev->next = newnode;
+        }else{
+          q->head = newnode;
+          newnode->prev = NULL;
+        }
+        tmp->prev = newnode;
+        set = 1;
+      break;
+    }
+    prev = tmp;
+    tmp = tmp->next;
+    i++;
+  }
+  if (set == 0){
+    struct node *newnode = malloc(sizeof(struct node));
+    newnode->data = ptr;
+    newnode->next = NULL;
+    if (i != 0){
+    prev->next = newnode;
+    newnode->prev = prev;
+    }else{
+      q->head = newnode;
+      newnode->prev = NULL;
+    }
+  }
+return i;
 }
 
 
@@ -113,7 +154,20 @@ void *priqueue_poll(priqueue_t *q)
  */
 void *priqueue_at(priqueue_t *q, int index)
 {
-	return NULL;
+  if (q->head == NULL){
+    return NULL;
+  }
+  int i = index;
+  struct node *tmp = q->head;
+  while(i > 0 && tmp->next != NULL){
+    tmp = tmp->next;
+    i--;
+  }
+  if(i > 0){
+    return NULL;
+  }
+  return tmp->data;
+
 }
 
 
@@ -128,7 +182,21 @@ void *priqueue_at(priqueue_t *q, int index)
  */
 int priqueue_remove(priqueue_t *q, void *ptr)
 {
-	return 0;
+  struct node *tmp = q->head;
+  int i = 0;
+  int num = 0;
+  while(tmp != NULL){
+    if(tmp->data == ptr){
+      tmp=tmp->next;
+      priqueue_remove_at(q,i);
+      num++;
+    }else{
+      i++;
+      tmp=tmp->next;
+    }
+
+  }
+  return num;
 }
 
 
@@ -143,19 +211,29 @@ int priqueue_remove(priqueue_t *q, void *ptr)
  */
 void *priqueue_remove_at(priqueue_t *q, int index)
 {
-  int i = index;
+
   struct node *tmp = q->head;
+  if (tmp == NULL){
+    return NULL;
+  }
+  if (index != 0){
   for(int i = index; i>0; i--){
     if(tmp->next == NULL){
-      printf("no element at index!\n");
+      printf("No element at index!\n");
       return NULL;
     }
     tmp = tmp->next;
   }
-  tmp->prev = tmp->next;
-
+  tmp->prev->next = tmp->next;
+  tmp->next->prev = tmp->prev;
+  }else{
+    q->head = tmp->next;
+    if(q->head != NULL){
+    q->head->prev = NULL;
+    }
+  }
   void * dta = tmp->data;
-  free(node);
+  free(tmp);
 
 	return dta;
 }
@@ -169,7 +247,21 @@ void *priqueue_remove_at(priqueue_t *q, int index)
  */
 int priqueue_size(priqueue_t *q)
 {
-	return 0;
+  int i = 0;
+
+  if(q->head == NULL){
+    return i;
+  }
+  else{
+    struct node *tmp = q->head;
+    i++;
+    while(tmp->next != NULL){
+      i++;
+      tmp = tmp->next;
+    }
+    return i;
+  }
+
 }
 
 
@@ -180,5 +272,7 @@ int priqueue_size(priqueue_t *q)
  */
 void priqueue_destroy(priqueue_t *q)
 {
-
+  while(priqueue_remove_at(q,0) != NULL){
+  }
+  //free(q);
 }

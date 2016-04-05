@@ -4,7 +4,7 @@
 
 CC = gcc
 INC = -I.
-FLAGS = -Wall -Wextra -Werror -Wno-unused -g
+FLAGS = -Wall -Wextra -Werror -Wno-unused -g -std=gnu99
 
 all: simulator queuetest doc/html
 
