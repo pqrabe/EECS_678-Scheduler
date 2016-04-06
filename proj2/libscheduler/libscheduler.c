@@ -31,7 +31,6 @@ int comparePRI(const void * a, const void * b)//Priority compare & Preemptive Pr
 }
 
 
-
 int compareRR(const void * a, const void * b)//round robbin
 {
   //job_t * joba = (job_t *)a;
@@ -40,6 +39,17 @@ int compareRR(const void * a, const void * b)//round robbin
 }
 
 
+job_t * searchID(int id){
+  int i = 0;
+  while(priqueue_at(q,i) != NULL){
+    job_t job = (job_t *)priqueue_at(q,i);
+    if (job->jobID == id){
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
 
 /**
   Stores information making up a job to be scheduled including any statistics.
@@ -188,10 +198,21 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
   @return -1 if core should remain idle.
  */
 int scheduler_job_finished(int core_id, int job_number, int time)
-{
+{ 
+  job_t * job = searchID(job_number);
+  priqueue_remove(q,job);
+  //do number analtics.
+  free(job);
   totTaskFin++;
-	return -1;
+  job = priqueue_peek(q);
+  if (job != NULL){
+    return job->jobID;
+  }else{
+    return -1;//else NULL, and nothing to do.
+  }
+	
 }
+
 
 
 /**
@@ -271,7 +292,10 @@ float scheduler_average_response_time()
 */
 void scheduler_clean_up()
 {
-
+  while(priqueue_peek(q) != NULL){
+    free(priqueue_peek(q));
+  }
+  priqueue_destroy(q);
 }
 
 
@@ -288,5 +312,20 @@ void scheduler_clean_up()
  */
 void scheduler_show_queue()
 {
+  int i = 0;
+  job_t *job = NULL;
+    printf("jobID\tarrivalTime\trunTime\tpriority");
+  while(priqueue_at(q,i)!= NULL){
+    job = priqueue_at(q,i);
+    printf(job->jobID);
+    printf("\t");
+    printf(job->arrivalTime);
+    printf("\t");
+    printf(job->runTime);
+    printf("\t");
+    printf(job->priority);
+    printf("\n");
+    i++;
 
+  }
 }
