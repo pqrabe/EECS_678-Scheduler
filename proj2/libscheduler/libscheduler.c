@@ -8,6 +8,38 @@
 #include "libscheduler.h"
 #include "../libpriqueue/libpriqueue.h"
 
+int compareFCFS(const void * a, const void * b)//first come, first serve
+{
+  job_t * joba = (job_t *)a;
+  job_t * jobb = (job_t *)b;
+  return joba->arrivalTime - jobb->arrivalTime;
+}
+
+int compareSJF(const void * a, const void * b)//shortest job first & Preemptive shortest job first
+{
+  job_t * joba = (job_t *)a;
+  job_t * jobb = (job_t *)b;
+  return joba->runTime - jobb->runTime;
+}
+
+
+int comparePRI(const void * a, const void * b)//Priority compare & Preemptive Priority compare
+{
+  job_t * joba = (job_t *)a;
+  job_t * jobb = (job_t *)b;
+  return joba->priority - jobb->priority;
+}
+
+
+
+int compareRR(const void * a, const void * b)//round robbin
+{
+  //job_t * joba = (job_t *)a;
+  //job_t * jobb = (job_t *)b;
+  return -1;
+}
+
+
 
 /**
   Stores information making up a job to be scheduled including any statistics.
@@ -16,6 +48,10 @@
 */
 typedef struct _job_t
 {
+  int jobID;
+  int arrivalTime;
+  int runTime;
+  int priority;
 
 } job_t;
 
@@ -34,6 +70,27 @@ typedef struct _job_t
 */
 void scheduler_start_up(int cores, scheme_t scheme)
 {
+  schm = scheme;
+  int (*queueCompfunc)(const void *elma, const void *elmb) = compareFCFS;
+
+  switch(scheme){
+    case FCFS:
+      queueCompfunc = &compareFCFS;
+      break;
+    case SJF:
+    case PSJF:
+      queueCompfunc = &compareSJF;
+      break;
+    case PRI:
+    case PPRI:
+      queueCompfunc = &comparePRI;
+      break;
+    case RR:
+      queueCompfunc = &compareRR;
+      break;
+  }
+
+  priqueue_init(&q, queueCompfunc);//change compare based on scheme
 
 }
 
@@ -60,7 +117,59 @@ void scheduler_start_up(int cores, scheme_t scheme)
  */
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
-	return -1;
+	job_t job = new job_t;
+  job->jobID = job_number;
+  job->arrivalTime = time;
+  job->runTime = running_time;
+  job->priority = priority;
+
+
+
+  int ret = priqueue_offer(&q, &job);
+  totTasksSch++;
+   switch(scheme){
+    case FCFS:
+      if(ret == 0){
+        return 0;//run on core 0;
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+    case SJF:
+     if(ret == 0 && priqueue_at(q,1) == NULL){//check if there is a second task and we are now the 
+                                              //first task(old first task became second task), if so, then schedule it
+        return 0;//run on core 0;
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+    case PSJF:
+      if(ret == 0){
+        return 0;//run on core 0; //may have just premepted something.
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+    case PRI:
+      if(ret == 0 && priqueue_at(q,1) == NULL){//check if there is a second task and we are now the 
+                                              //first task(old first task became second task), if so, then schedule it.
+        return 0;//run on core 0;
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+    case PPRI:
+      if(ret == 0){
+        return 0;//run on core 0; //may have just premepted something.
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+    case RR:
+      if(ret == 0){
+        return 0;//run on core 0;
+      }else{
+        return -1;//is not first, do not change what is scheduled.
+      }
+  }
+
+  //if here, its had an issue.
+  //return 0;//need to check whats at the first of the queue//schedules the job on core 1
 }
 
 
@@ -80,6 +189,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
  */
 int scheduler_job_finished(int core_id, int job_number, int time)
 {
+  totTaskFin++;
 	return -1;
 }
 
@@ -97,9 +207,17 @@ int scheduler_job_finished(int core_id, int job_number, int time)
   @return job_number of the job that should be scheduled on core cord_id
   @return -1 if core should remain idle
  */
-int scheduler_quantum_expired(int core_id, int time)
+int scheduler_quantum_expired(int core_id, int time)//TODO:check timeing things.
 {
-	return -1;
+  job_t * job = priqueue_poll(q);
+  priqueue_offer(&q,job);
+  job = priqueue_peek(&q);
+
+  //if (job != NULL){
+    return job->jobID;
+  //}else{
+  //  return -1;
+  //}
 }
 
 
@@ -112,6 +230,7 @@ int scheduler_quantum_expired(int core_id, int time)
  */
 float scheduler_average_waiting_time()
 {
+
 	return 0.0;
 }
 
@@ -125,6 +244,7 @@ float scheduler_average_waiting_time()
  */
 float scheduler_average_turnaround_time()
 {
+
 	return 0.0;
 }
 
@@ -138,6 +258,7 @@ float scheduler_average_turnaround_time()
  */
 float scheduler_average_response_time()
 {
+
 	return 0.0;
 }
 
