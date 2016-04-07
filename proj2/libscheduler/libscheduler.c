@@ -131,7 +131,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 
 
 
-  int ret = priqueue_offer(&q, &job);
+  int ret = priqueue_offer(&q, job);
   totTasksSch++;
    switch(schm){
     case FCFS:
@@ -311,10 +311,10 @@ void scheduler_show_queue()
 {
   int i = 0;
   job_t *job = NULL;
-    printf("jobID\tarrivalTime\trunTime\tpriority");
+    printf("jobID  arivTime  runTime  priority\n");
   while(priqueue_at(&q,i)!= NULL){
     job = priqueue_at(&q,i);
-    printf("%d\t%d\t%d\t%d\n",job->jobID, job->arrivalTime, job->runTime, job->priority);
+    printf("\t %d\t%d\t  %d\t   %d\n",job->jobID, job->arrivalTime, job->runTime, job->priority);
     i++;
   }
 }
