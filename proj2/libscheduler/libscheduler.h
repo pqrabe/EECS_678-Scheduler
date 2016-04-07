@@ -16,6 +16,8 @@
 */
 typedef enum {FCFS = 0, SJF, PSJF, PRI, PPRI, RR} scheme_t;
 
+typedef enum {false = 0,true = 1} bool;
+
 scheme_t schm;
 priqueue_t q;
 int totWaitTime;

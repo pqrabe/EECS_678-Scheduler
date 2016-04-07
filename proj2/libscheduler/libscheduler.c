@@ -14,7 +14,10 @@ typedef struct _job_t
   int arrivalTime;
   int runTime;
   int priority;
-
+  int waitTime;//time its been wating from(waiting start time)
+  int remainingTime;
+  int prevstartTime;//time when last scheduled.
+  bool scheduledyet;
 } job_t;
 
 
@@ -33,6 +36,12 @@ int compareSJF(const void * a, const void * b)//shortest job first & Preemptive 
   return joba->runTime - jobb->runTime;
 }
 
+int comparePSJF(const void * a, const void * b)//shortest job first & Preemptive shortest job first
+{
+  job_t * joba = (job_t *)a;
+  job_t * jobb = (job_t *)b;
+  return joba->remainingTime - jobb->remainingTime;
+}
 
 int comparePRI(const void * a, const void * b)//Priority compare & Preemptive Priority compare
 {
@@ -84,8 +93,10 @@ void scheduler_start_up(int cores, scheme_t scheme)
       queueCompfunc = &compareFCFS;
       break;
     case SJF:
-    case PSJF:
       queueCompfunc = &compareSJF;
+      break;
+    case PSJF:
+
       break;
     case PRI:
     case PPRI:
@@ -128,51 +139,71 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
   job->arrivalTime = time;
   job->runTime = running_time;
   job->priority = priority;
+  job->remainingTime = running_time;//needed for premeptive things.
+  job->scheduledyet = false;
+  job->waitTime = time;
 
-
+  if(priqueue_peek(&q) !=NULL){
+    ((job_t *)priqueue_peek(&q)) remainingTime = runTime - (prevstartTime - time); //TODO:fix
+  }
 
   int ret = priqueue_offer(&q, job);
   totTasksSch++;
+  int returnval = -1;
    switch(schm){
     case FCFS:
       if(ret == 0){
-        return 0;//run on core 0;
+        returnval = 0;//run on core 0;
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
     case SJF:
      if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
                                               //first task(old first task became second task), if so, then schedule it
-        return 0;//run on core 0;
+        returnval = 0;//run on core 0;
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
     case PSJF:
       if(ret == 0){
-        return 0;//run on core 0; //may have just premepted something.
+        returnval = 0;//run on core 0; //may have just premepted something.
+        if(priqueue_at(&q,1) != NULL){//if prempeted somethin else.
+          ((job_t *)priqueue_at(&q,1))->waitTime = time;
+        }
+
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
     case PRI:
       if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
                                               //first task(old first task became second task), if so, then schedule it.
-        return 0;//run on core 0;
+        returnval = 0;//run on core 0;
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
     case PPRI:
       if(ret == 0){
-        return 0;//run on core 0; //may have just premepted something.
+        returnval = 0;//run on core 0; //may have just premepted something.
+        if(priqueue_at(&q,1) != NULL){//just premepted something, set new wait start time.
+          ((job_t *)priqueue_at(&q,1))->waitTime = time;
+        }
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
     case RR:
-      default:
+    default:
       if(ret == 0){
-        return 0;//run on core 0;
+        returnval = 0;//run on core 0;
       }else{
-        return -1;//is not first, do not change what is scheduled.
+        returnval = -1;//is not first, do not change what is scheduled.
       }
+  }
+  if (returnval == -1){
+    return -1;
+  }else{
+    prevstartTime = time;
+    job->scheduledyet = true;
+    return returnval;
   }
 
   //if here, its had an issue.
@@ -198,11 +229,20 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 { 
   job_t * job = searchID(job_number);
   priqueue_remove(&q,job);
+  totTurnAround += time - job->arrivalTime;
   //do number analtics.
   free(job);
   totTaskFin++;
   job = priqueue_peek(&q);
   if (job != NULL){
+    //job is scheduled
+    if(job-> scheduledyet == false){
+      totResponceTime += time - job->arrivalTime;
+      job->scheduledyet = true;
+
+    }
+    totWaitTime += time - job->waitTime;
+
     return job->jobID;
   }else{
     return -1;//else NULL, and nothing to do.
@@ -225,13 +265,20 @@ int scheduler_job_finished(int core_id, int job_number, int time)
   @return job_number of the job that should be scheduled on core cord_id
   @return -1 if core should remain idle
  */
-int scheduler_quantum_expired(int core_id, int time)//TODO:check timeing things.
+int scheduler_quantum_expired(int core_id, int time)
 {
   job_t * job = priqueue_poll(&q);
-  priqueue_offer(&q,job);
-  job = priqueue_peek(&q);
+  job->waitTime = time;//set the wait time.
+  priqueue_offer(&q,job);//just offered, gantreed job in queue
+  
+  job = priqueue_peek(&q);//reuse job, new job below:
 
   //if (job != NULL){
+    if(job-> scheduledyet == false){
+      totResponceTime += time - job->arrivalTime;
+      job->scheduledyet = true;
+    }
+    totWaitTime += time - job->waitTime;
     return job->jobID;
   //}else{
   //  return -1;
@@ -249,7 +296,7 @@ int scheduler_quantum_expired(int core_id, int time)//TODO:check timeing things.
 float scheduler_average_waiting_time()
 {
 
-	return 0.0;
+	return (float)totWaitTime / (float)totTaskFin;
 }
 
 
@@ -263,7 +310,7 @@ float scheduler_average_waiting_time()
 float scheduler_average_turnaround_time()
 {
 
-	return 0.0;
+	return (float)totTurnAround / (float)totTaskFin;
 }
 
 
@@ -277,7 +324,7 @@ float scheduler_average_turnaround_time()
 float scheduler_average_response_time()
 {
 
-	return 0.0;
+	return (float)totResponceTime / (float)totTaskFin;
 }
 
 
