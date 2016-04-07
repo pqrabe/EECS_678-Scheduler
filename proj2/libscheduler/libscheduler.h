@@ -1,6 +1,11 @@
 /** @file libscheduler.h
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../libpriqueue/libpriqueue.h"
+
 #ifndef LIBSCHEDULER_H_
 #define LIBSCHEDULER_H_
 

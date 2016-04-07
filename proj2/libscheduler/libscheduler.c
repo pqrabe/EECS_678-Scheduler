@@ -1,12 +1,23 @@
 /** @file libscheduler.c
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "libscheduler.h"
 #include "../libpriqueue/libpriqueue.h"
+
+/**
+  Stores information making up a job to be scheduled including any statistics.
+
+  You may need to define some global variables or a struct to store your job queue elements. 
+*/
+typedef struct _job_t
+{
+  int jobID;
+  int arrivalTime;
+  int runTime;
+  int priority;
+
+} job_t;
+
+
 
 int compareFCFS(const void * a, const void * b)//first come, first serve
 {
@@ -41,30 +52,15 @@ int compareRR(const void * a, const void * b)//round robbin
 
 job_t * searchID(int id){
   int i = 0;
-  while(priqueue_at(q,i) != NULL){
-    job_t job = (job_t *)priqueue_at(q,i);
+  while(priqueue_at(&q,i) != NULL){
+    job_t * job = (job_t *)priqueue_at(&q,i);
     if (job->jobID == id){
-      return i;
+      return job;
     }
     i++;
   }
-  return -1;
+  return NULL;
 }
-
-/**
-  Stores information making up a job to be scheduled including any statistics.
-
-  You may need to define some global variables or a struct to store your job queue elements. 
-*/
-typedef struct _job_t
-{
-  int jobID;
-  int arrivalTime;
-  int runTime;
-  int priority;
-
-} job_t;
-
 
 /**
   Initalizes the scheduler.
@@ -127,7 +123,7 @@ void scheduler_start_up(int cores, scheme_t scheme)
  */
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
-	job_t job = new job_t;
+	job_t * job = malloc(sizeof(job_t));
   job->jobID = job_number;
   job->arrivalTime = time;
   job->runTime = running_time;
@@ -137,7 +133,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 
   int ret = priqueue_offer(&q, &job);
   totTasksSch++;
-   switch(scheme){
+   switch(schm){
     case FCFS:
       if(ret == 0){
         return 0;//run on core 0;
@@ -145,7 +141,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
         return -1;//is not first, do not change what is scheduled.
       }
     case SJF:
-     if(ret == 0 && priqueue_at(q,1) == NULL){//check if there is a second task and we are now the 
+     if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
                                               //first task(old first task became second task), if so, then schedule it
         return 0;//run on core 0;
       }else{
@@ -158,7 +154,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
         return -1;//is not first, do not change what is scheduled.
       }
     case PRI:
-      if(ret == 0 && priqueue_at(q,1) == NULL){//check if there is a second task and we are now the 
+      if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
                                               //first task(old first task became second task), if so, then schedule it.
         return 0;//run on core 0;
       }else{
@@ -171,6 +167,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
         return -1;//is not first, do not change what is scheduled.
       }
     case RR:
+      default:
       if(ret == 0){
         return 0;//run on core 0;
       }else{
@@ -200,11 +197,11 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 int scheduler_job_finished(int core_id, int job_number, int time)
 { 
   job_t * job = searchID(job_number);
-  priqueue_remove(q,job);
+  priqueue_remove(&q,job);
   //do number analtics.
   free(job);
   totTaskFin++;
-  job = priqueue_peek(q);
+  job = priqueue_peek(&q);
   if (job != NULL){
     return job->jobID;
   }else{
@@ -230,7 +227,7 @@ int scheduler_job_finished(int core_id, int job_number, int time)
  */
 int scheduler_quantum_expired(int core_id, int time)//TODO:check timeing things.
 {
-  job_t * job = priqueue_poll(q);
+  job_t * job = priqueue_poll(&q);
   priqueue_offer(&q,job);
   job = priqueue_peek(&q);
 
@@ -292,10 +289,10 @@ float scheduler_average_response_time()
 */
 void scheduler_clean_up()
 {
-  while(priqueue_peek(q) != NULL){
-    free(priqueue_peek(q));
+  while(priqueue_peek(&q) != NULL){
+    free(priqueue_peek(&q));
   }
-  priqueue_destroy(q);
+  priqueue_destroy(&q);
 }
 
 
@@ -315,17 +312,9 @@ void scheduler_show_queue()
   int i = 0;
   job_t *job = NULL;
     printf("jobID\tarrivalTime\trunTime\tpriority");
-  while(priqueue_at(q,i)!= NULL){
-    job = priqueue_at(q,i);
-    printf(job->jobID);
-    printf("\t");
-    printf(job->arrivalTime);
-    printf("\t");
-    printf(job->runTime);
-    printf("\t");
-    printf(job->priority);
-    printf("\n");
+  while(priqueue_at(&q,i)!= NULL){
+    job = priqueue_at(&q,i);
+    printf("%d\t%d\t%d\t%d\n",job->jobID, job->arrivalTime, job->runTime, job->priority);
     i++;
-
   }
 }
