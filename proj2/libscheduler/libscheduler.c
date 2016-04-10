@@ -29,14 +29,14 @@ int compareFCFS(const void * a, const void * b)//first come, first serve
   return joba->arrivalTime - jobb->arrivalTime;
 }
 
-int compareSJF(const void * a, const void * b)//shortest job first & Preemptive shortest job first
+int compareSJF(const void * a, const void * b)//shortest job first 
 {
   job_t * joba = (job_t *)a;
   job_t * jobb = (job_t *)b;
   return joba->runTime - jobb->runTime;
 }
 
-int comparePSJF(const void * a, const void * b)//shortest job first & Preemptive shortest job first
+int comparePSJF(const void * a, const void * b)//Preemptive shortest job first
 {
   job_t * joba = (job_t *)a;
   job_t * jobb = (job_t *)b;
@@ -96,7 +96,7 @@ void scheduler_start_up(int cores, scheme_t scheme)
       queueCompfunc = &compareSJF;
       break;
     case PSJF:
-
+      queueCompfunc = &comparePSJF;
       break;
     case PRI:
     case PPRI:
@@ -144,10 +144,13 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
   job->waitTime = time;
 
   if(priqueue_peek(&q) !=NULL){
-    ((job_t *)priqueue_peek(&q)) remainingTime = runTime - (prevstartTime - time); //TODO:fix
+    job_t * tmp = priqueue_peek(&q);
+    tmp->remainingTime = tmp->remainingTime - (time - tmp->prevstartTime); //update current job's remaining time. (for PSJF)
   }
 
-  int ret = priqueue_offer(&q, job);
+
+
+  int ret = priqueue_offer(&q, job);//put new job on queue.
   totTasksSch++;
   int returnval = -1;
    switch(schm){
@@ -157,23 +160,27 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
     case SJF:
-     if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
-                                              //first task(old first task became second task), if so, then schedule it
+     if((ret == 0) &&( priqueue_at(&q,1) == NULL)){//check if there is a second task and we are now the 
+                                              //first task(old first task became second task), if so, then dont schedule it
         returnval = 0;//run on core 0;
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
     case PSJF:
       if(ret == 0){
         returnval = 0;//run on core 0; //may have just premepted something.
-        if(priqueue_at(&q,1) != NULL){//if prempeted somethin else.
+        if(priqueue_at(&q,1) != NULL){//if prempeted something else.
+
           ((job_t *)priqueue_at(&q,1))->waitTime = time;
         }
 
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
     case PRI:
       if(ret == 0 && priqueue_at(&q,1) == NULL){//check if there is a second task and we are now the 
                                               //first task(old first task became second task), if so, then schedule it.
@@ -181,6 +188,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
     case PPRI:
       if(ret == 0){
         returnval = 0;//run on core 0; //may have just premepted something.
@@ -190,6 +198,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
     case RR:
     default:
       if(ret == 0){
@@ -197,11 +206,12 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
       }
+      break;
   }
   if (returnval == -1){
-    return -1;
+    return -1;//not secheduled to run, need to wait
   }else{
-    prevstartTime = time;
+    job->prevstartTime = time;
     job->scheduledyet = true;
     return returnval;
   }
@@ -242,7 +252,7 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 
     }
     totWaitTime += time - job->waitTime;
-
+    job->prevstartTime = time;
     return job->jobID;
   }else{
     return -1;//else NULL, and nothing to do.
@@ -358,10 +368,20 @@ void scheduler_show_queue()
 {
   int i = 0;
   job_t *job = NULL;
-    printf("jobID  arivTime  runTime  priority\n");
+    printf("jobID  arivTime  runTime  priority  remainingTime  scheduledyet\n");
   while(priqueue_at(&q,i)!= NULL){
     job = priqueue_at(&q,i);
-    printf("\t %d\t%d\t  %d\t   %d\n",job->jobID, job->arrivalTime, job->runTime, job->priority);
+    printf("\t %d\t%d\t  %d\t   %d\t\t%d\t\t%d\n",job->jobID, job->arrivalTime, job->runTime, job->priority ,job->remainingTime , job->scheduledyet);
     i++;
   }
 }
+/*
+ int jobID;
+  int arrivalTime;
+  int runTime;
+  int priority;
+  int waitTime;//time its been wating from(waiting start time)
+  int remainingTime;
+  int prevstartTime;//time when last scheduled.
+  bool scheduledyet;
+*/
