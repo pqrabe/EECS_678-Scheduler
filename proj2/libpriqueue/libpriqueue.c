@@ -187,7 +187,7 @@ int priqueue_remove(priqueue_t *q, void *ptr)
   int num = 0;
   while(tmp != NULL){
     if(tmp->data == ptr){
-      //tmp=tmp->next;
+      tmp=tmp->next;
       priqueue_remove_at(q,i);
       num++;
     }else{
