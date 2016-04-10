@@ -175,6 +175,10 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
         if(priqueue_at(&q,1) != NULL){//if prempeted something else.
 
           ((job_t *)priqueue_at(&q,1))->waitTime = time;
+          if(((job_t *)priqueue_at(&q,1))->remainingTime == ((job_t *)priqueue_at(&q,1))->runTime){//0 runing time, did not actually get sechduled yet (new job just prempted a about to be sechduled task)
+            ((job_t *)priqueue_at(&q,1))->scheduledyet = false;
+            totResponceTime -= time - ((job_t *)priqueue_at(&q,1))->arrivalTime;
+          }
         }
 
       }else{
@@ -194,6 +198,10 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
         returnval = 0;//run on core 0; //may have just premepted something.
         if(priqueue_at(&q,1) != NULL){//just premepted something, set new wait start time.
           ((job_t *)priqueue_at(&q,1))->waitTime = time;
+          if(((job_t *)priqueue_at(&q,1))->remainingTime == ((job_t *)priqueue_at(&q,1))->runTime){ //0 runing time, did not actually get sechduled yet (new job just prempted a about to be sechduled task)
+            ((job_t *)priqueue_at(&q,1))->scheduledyet = false;
+            totResponceTime -= time - ((job_t *)priqueue_at(&q,1))->arrivalTime;
+          }
         }
       }else{
         returnval = -1;//is not first, do not change what is scheduled.
